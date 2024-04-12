@@ -1,5 +1,7 @@
 # Organização
 
 ### Horário:
+Todos: terça 14h-18h
 
-Anna: segundas 14h-16h; terças 19h-21h (~not sure); sextas 14h-16h   
+
+Anna: segundas 14h-16h; sextas 14h-16h   
