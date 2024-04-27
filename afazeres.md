@@ -2,6 +2,6 @@
 Todos: terça 14h-18h
 
 ### Afazeres:
-- implementar SAC
-- implementar PPO
-- connecting those with lidar's readings
+- tratamento dados LIDAR para serem utilizados pelos algos (Matheus)
+- criação de novos mapas/cenários (Miguel)
+- parte teórica de compreensão e implementação dos algos (Anna)
