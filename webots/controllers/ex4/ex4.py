@@ -6,6 +6,9 @@ import math
 
 from numpy import random
 
+import os
+os.environ['WEBOTS_HOME'] = '/usr/local/webots'
+
 from controller import Robot, Lidar
 from utils import cmd_vel
 
