@@ -1,23 +1,17 @@
-import gymnasium
 from gymnasium import spaces
 import numpy as np
-import random
-import time
 
 from gymnasium.wrappers import NormalizeObservation
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.env_checker import check_env
 
-from reward import calculate_reward
-
-import sys
 import os
 os.environ['WEBOTS_HOME'] = '/usr/local/webots'
 
-from controller import Lidar, GPS, Supervisor, TouchSensor
+from controller import Supervisor
 from webots.controllers.utils import cmd_vel
-from env.my_env import MyEnv
+from envs.my_env import MyEnv
 
 
 class RobotActionExecutor:
@@ -59,11 +53,15 @@ class WallFollowingEnv(MyEnv):
         super(WallFollowingEnv, self).__init__(supervisor)
 
         self.action_space = spaces.Discrete(self.N_ACTION_SPACES)
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(self.N_OBSERVATIONS,), dtype=np.float64)
+        self.observation_space = spaces.Box(low=0, high=3, shape=(self.N_OBSERVATIONS,), dtype=np.float64)
 
     def _init_robot(self):
         super()._init_robot()
         self.action_executor = RobotActionExecutor(self.supervisor)
+
+    def reset(self, seed=None):
+        observation, info = super().reset()
+        return np.array([min(x, 3) for x in observation]), info
 
     def step(self, action):
         assert 0 <= action <= self.N_ACTION_SPACES - 1
@@ -85,7 +83,7 @@ class WallFollowingEnv(MyEnv):
         self.previous_distance_to_final = self.current_distance_from_goal
         self.current_distance_from_goal = self.get_distance_from_goal()
 
-        observation = np.array(self.lidar.getRangeImage())
+        observation = np.array([min(x, 3) for x in self.lidar.getRangeImage()])
         reward = self.get_current_reward()
         done = (step_result == -1
                 or self.current_distance_from_goal < 0.05

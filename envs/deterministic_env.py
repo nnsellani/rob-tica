@@ -10,7 +10,7 @@ os.environ['WEBOTS_HOME'] = '/usr/local/webots'
 
 from controller import Supervisor
 from webots.controllers.utils import cmd_vel
-from env.my_env import MyEnv
+from envs.my_env import MyEnv
 
 
 class DeterministicEnv(MyEnv):
