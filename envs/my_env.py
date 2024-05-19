@@ -14,7 +14,9 @@ class MyEnv(gymnasium.Env):
     N_ACTION_SPACES = 5
     N_OBSERVATIONS = 180
     TIME_PENALTY_FACTOR = 1
-    WALL_DISTANCE_GOAL = 0.1
+    WALL_DISTANCE_GOAL = 0.2
+    TIME_LIMIT = 60
+    STEPS_PER_ACTION = 1
 
     INITIAL_AND_FINAL_STATES = [
         ((0.64, 0.11), (0.64, 0.83)),
@@ -52,10 +54,8 @@ class MyEnv(gymnasium.Env):
 
         self.lidar.enable(timestep)
         self.lidar.enablePointCloud()
-        print(self.lidar.getRangeImage())
 
         self.gps.enable(timestep)
-        print(self.gps.getValues())
 
         self.touch_sensor: TouchSensor = self.supervisor.getDevice('touch sensor')
         self.touch_sensor.enable(timestep)
@@ -75,12 +75,12 @@ class MyEnv(gymnasium.Env):
         observation = np.array(self.lidar.getRangeImage())
         return observation, {}
 
-    def get_current_reward(self):
-        wall_distance_reward = 1 - (min(self.lidar.getRangeImage()) - self.WALL_DISTANCE_GOAL)
-        progress_reward = self.previous_distance_from_goal - self.current_distance_from_goal
-        #efficiency_reward = -self.get_time_elapsed() * self.TIME_PENALTY_FACTOR
+    def get_current_reward(self, wd_multiplier=1, progress_multiplier=.03, time_multiplier=.01):
+        wall_distance_reward = (np.abs(np.min(self.lidar.getRangeImage()) - self.WALL_DISTANCE_GOAL)) * wd_multiplier
+        progress_reward = (self.previous_distance_from_goal - self.current_distance_from_goal) * progress_multiplier
+        efficiency_reward = self.get_time_elapsed() * time_multiplier
 
-        total_reward = wall_distance_reward + progress_reward #+ efficiency_reward
+        total_reward = (wall_distance_reward + progress_reward + efficiency_reward) * -1
         return total_reward
 
     def get_distance_from_goal(self):
@@ -88,6 +88,12 @@ class MyEnv(gymnasium.Env):
         current_pos: (float, float) = (gps_readings[0], gps_readings[1])
 
         return np.sqrt((current_pos[0] - self.final_pos[0]) ** 2 + (current_pos[1] - self.final_pos[1]) ** 2)
+
+    def check_wall_collision(self, min_distance=.045):
+        min_lidar_reading= np.min(self.lidar.getRangeImage())
+        if min_lidar_reading < min_distance:
+            return True
+        return False
 
     def get_time_elapsed(self):
         return time.time() - self.start_time
