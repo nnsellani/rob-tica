@@ -5,18 +5,21 @@ import time
 
 import sys
 import os
+
 os.environ['WEBOTS_HOME'] = '/usr/local/webots'
 
 from controller import Supervisor, Lidar, GPS, TouchSensor
 
-class MyEnv(gymnasium.Env):
 
-    N_ACTION_SPACES = 5
+def _my_activation_func(x):
+    return ((1 / (1 + np.e ** -x)) - .5) * 2
+
+
+class MyEnv(gymnasium.Env):
     N_OBSERVATIONS = 180
-    TIME_PENALTY_FACTOR = 1
     WALL_DISTANCE_GOAL = 0.2
     TIME_LIMIT = 60
-    STEPS_PER_ACTION = 1
+    STEPS_PER_ACTION = 30
 
     INITIAL_AND_FINAL_STATES = [
         ((0.64, 0.11), (0.64, 0.83)),
@@ -70,18 +73,22 @@ class MyEnv(gymnasium.Env):
         self.current_distance_from_goal = self.previous_distance_from_goal = self.get_distance_from_goal()
 
         # set robot position
-        self.trans_field.setSFVec3f([self.initial_pos[0], self.initial_pos[1], 0,])
+        self.trans_field.setSFVec3f([self.initial_pos[0], self.initial_pos[1], 0])
 
-        observation = np.array(self.lidar.getRangeImage())
+        observation = self.get_my_lidar_readings()
         return observation, {}
 
-    def get_current_reward(self, wd_multiplier=1, progress_multiplier=.03, time_multiplier=.01):
-        wall_distance_reward = (np.abs(np.min(self.lidar.getRangeImage()) - self.WALL_DISTANCE_GOAL)) * wd_multiplier
-        progress_reward = (self.previous_distance_from_goal - self.current_distance_from_goal) * progress_multiplier
-        efficiency_reward = self.get_time_elapsed() * time_multiplier
+    def get_current_reward(self, wd_multiplier=2, progress_multiplier=.3, time_multiplier=.05):
+        #wall_distance_reward = (np.abs(np.min(self.get_my_lidar_readings()) - self.WALL_DISTANCE_GOAL)) * -1
+        wall_distance_reward = (np.abs(np.min(self.get_my_lidar_readings()[25:75]) - self.WALL_DISTANCE_GOAL)) * -1
+        progress_reward = (self.previous_distance_from_goal - self.current_distance_from_goal)
+        efficiency_reward = self.get_time_elapsed() * -1
 
-        total_reward = (wall_distance_reward + progress_reward + efficiency_reward) * -1
-        return total_reward
+        total_reward = (wall_distance_reward * wd_multiplier
+                        + progress_reward * progress_multiplier
+                        + efficiency_reward * time_multiplier)
+
+        return _my_activation_func(total_reward)
 
     def get_distance_from_goal(self):
         gps_readings: [float] = self.gps.getValues()
@@ -89,12 +96,16 @@ class MyEnv(gymnasium.Env):
 
         return np.sqrt((current_pos[0] - self.final_pos[0]) ** 2 + (current_pos[1] - self.final_pos[1]) ** 2)
 
+    def get_my_lidar_readings(self):
+        readings = np.array(self.lidar.getRangeImage())
+        readings[readings > 3] = 3
+        return readings
+
     def check_wall_collision(self, min_distance=.045):
-        min_lidar_reading= np.min(self.lidar.getRangeImage())
+        min_lidar_reading = np.min(self.get_my_lidar_readings())
         if min_lidar_reading < min_distance:
             return True
         return False
 
     def get_time_elapsed(self):
         return time.time() - self.start_time
-
