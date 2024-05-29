@@ -19,7 +19,7 @@ class MyEnv(gymnasium.Env):
     N_OBSERVATIONS = 180
     WALL_DISTANCE_GOAL = 0.2
     TIME_LIMIT = 60
-    STEPS_PER_ACTION = 30
+    STEPS_PER_ACTION = 70
 
     INITIAL_AND_FINAL_STATES = [
         ((0.64, 0.11), (0.64, 0.83)),
@@ -78,7 +78,7 @@ class MyEnv(gymnasium.Env):
         observation = self.get_my_lidar_readings()
         return observation, {}
 
-    def get_current_reward(self, wd_multiplier=2, progress_multiplier=.3, time_multiplier=.05):
+    def get_current_reward(self, wd_multiplier=.2, progress_multiplier=.03, time_multiplier=.005):
         #wall_distance_reward = (np.abs(np.min(self.get_my_lidar_readings()) - self.WALL_DISTANCE_GOAL)) * -1
         wall_distance_reward = (np.abs(np.min(self.get_my_lidar_readings()[25:75]) - self.WALL_DISTANCE_GOAL)) * -1
         progress_reward = (self.previous_distance_from_goal - self.current_distance_from_goal)

@@ -98,13 +98,14 @@ class RobotActionExecutor2:
 
 class WallFollowingEnv(MyEnv):
 
-    def __init__(self, supervisor: Supervisor):
-        self.action_executor = RobotActionExecutor2(supervisor)
+    def __init__(self, supervisor: Supervisor, reward_multipliers=[2, .3, .05], reward_adjustment=1.0):
+        self.action_executor = RobotActionExecutor(supervisor)
         self.action_space = spaces.Discrete(self.action_executor.N_ACTIONS)
         self.observation_space = spaces.Box(low=0, high=1, shape=(self.N_OBSERVATIONS,), dtype=np.float64)
 
         super(WallFollowingEnv, self).__init__(supervisor)
 
+        self.reward_multipliers = [x * reward_adjustment for x in reward_multipliers]
         self.reward = None
 
     def _init_robot(self):
@@ -148,7 +149,7 @@ class WallFollowingEnv(MyEnv):
             self.reward = -end_reward
             done = True
         else:
-            self.reward = self.get_current_reward()
+            self.reward = self.get_current_reward(*self.reward_multipliers)
             done = False
 
         # Execute action and return observation, reward, done, truncated, info
@@ -179,22 +180,22 @@ def train_model():
 
     supervisor = Supervisor()
     try:
-        env = WallFollowingEnv(supervisor)
+        env = WallFollowingEnv(supervisor, reward_multipliers=(10, .3, .05), reward_adjustment=.01)
         #env = NormalizeObservation(env)
         check_env(env)
 
         # Wrap the environment
         env = DummyVecEnv([lambda: env])
 
-        n_timesteps = 70_000
+        n_timesteps = 75_000
 
         # Create PPO model
         model = PPO('MlpPolicy', env, verbose=1,
                     n_epochs=5, learning_rate=.001,
-                    policy_kwargs={
-                        'net_arch': [512, 512, 128, 32]
-                    }
-                    )
+                    #policy_kwargs={
+                    #    'net_arch': [512, 512, 128, 32]
+                    #}
+        )
 
         # Train the model
         print('Training...')
@@ -222,8 +223,8 @@ def run_model():
         print('Testing...')
         # Evaluate the model
         obs = env.reset()
-        every_n = 50
-        count = 50
+        every_n = 100
+        count = every_n
         while True:
             action, _states = model.predict(obs)
 
