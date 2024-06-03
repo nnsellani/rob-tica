@@ -20,8 +20,8 @@ TexturedBackground {
 TexturedBackgroundLight {
 }
 DEF EPUCK Robot {
-  translation 0.460532278377545 0.6442690069394447 -9.009727105318242e-05
-  rotation 9.078044765538636e-05 -0.0002844738748080923 0.9999999554167615 -2.937980093236285
+  translation 0.6823656845269812 1.5497313659033294 0.002715093085060615
+  rotation 0.354042402016997 -0.6661815989063974 -0.656396263588201 0.11197012877578286
   children [
     TouchSensor {
       translation 0 0 0.04
@@ -34,7 +34,7 @@ DEF EPUCK Robot {
     }
     Lidar {
       translation 0 0 0.03
-      horizontalResolution 180
+      horizontalResolution 120
       fieldOfView 6.28319
       numberOfLayers 1
       near 0.04
@@ -47,7 +47,7 @@ DEF EPUCK Robot {
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position 985.3958181743119
+        position 1505.5101404536636
         axis 0 1 0
         anchor 0 0 0.02
       }
@@ -63,8 +63,8 @@ DEF EPUCK Robot {
         }
       ]
       endPoint DEF EPUCK_LEFT_WHEEL Solid {
-        translation 0 0.026000000000000027 0.02
-        rotation 0 1 0 5.218910254296408
+        translation 0 0.026000000000000047 0.02
+        rotation 0 -1 0 2.4543332694372015
         children [
           DEF EPUCK_WHEEL Pose {
             rotation 1 0 0 -1.570796
@@ -196,13 +196,11 @@ DEF EPUCK Robot {
           density -1
           mass 0.005
         }
-        linearVelocity -0.12283976935597901 -0.02547297617512083 8.534595147453395e-07
-        angularVelocity 1.2736499078571382 -6.1416507774292075 0.00037269611466528556
       }
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position 1054.3623611691091
+        position 1564.8401063892343
         axis 0 1 0
         anchor 0 0 0.02
       }
@@ -218,8 +216,8 @@ DEF EPUCK Robot {
         }
       ]
       endPoint DEF EPUCK_RIGHT_WHEEL Solid {
-        translation 0 -0.025999999999999995 0.02
-        rotation 0 -1 0 1.2127704370613928
+        translation 0 -0.025999999999999985 0.02
+        rotation 0 -0.9999999999999999 0 5.956220405662341
         children [
           Pose {
             rotation 1 0 0 3.14159
@@ -231,8 +229,6 @@ DEF EPUCK Robot {
         name "right wheel"
         boundingObject USE EPUCK_WHEEL_BOUNDING_OBJECT
         physics USE EPUCK_WHEEL_PHYSICS
-        linearVelocity -0.12285581337128841 -0.02547549448906573 -1.9633830902835316e-06
-        angularVelocity 1.2736500120590168 -6.141650725124566 0.0003725397780412753
       }
     }
     DEF BATTERY_CONNECTOR Pose {
@@ -1106,8 +1102,8 @@ DEF EPUCK Robot {
   controller "<extern>"
   supervisor TRUE
   cpuConsumption 1.11
-  linearVelocity -0.12253411138253771 -0.025380300809304618 1.128768998283427e-06
-  angularVelocity 0.003981812487051802 0.008660749753796198 0.0037409110959005006
+  linearVelocity 0.1585763818616444 -0.03557041424671005 0.17006625554215432
+  angularVelocity 1.2357728379736717 0.7105393653782639 0.2564581908905841
 }
 RectangleArena {
   translation 1.0010000000000001 1.0010000000000001 0

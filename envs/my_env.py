@@ -16,10 +16,10 @@ def _my_activation_func(x):
 
 
 class MyEnv(gymnasium.Env):
-    N_OBSERVATIONS = 180
-    WALL_DISTANCE_GOAL = 0.2
+    N_OBSERVATIONS = 120
+    WALL_DISTANCE_GOAL = 0.9
     TIME_LIMIT = 60
-    STEPS_PER_ACTION = 70
+    STEPS_PER_ACTION = 1
 
     INITIAL_AND_FINAL_STATES = [
         ((0.64, 0.11), (0.64, 0.83)),
@@ -42,6 +42,8 @@ class MyEnv(gymnasium.Env):
         self.final_pos = None
         self.current_distance_from_goal = None
         self.previous_distance_from_goal = None
+
+        self.current_location = self.previous_location = (0, 0)
 
         self._init_robot()
 
@@ -78,23 +80,31 @@ class MyEnv(gymnasium.Env):
         observation = self.get_my_lidar_readings()
         return observation, {}
 
-    def get_current_reward(self, wd_multiplier=.2, progress_multiplier=.03, time_multiplier=.005):
-        #wall_distance_reward = (np.abs(np.min(self.get_my_lidar_readings()) - self.WALL_DISTANCE_GOAL)) * -1
-        wall_distance_reward = (np.abs(np.min(self.get_my_lidar_readings()[25:75]) - self.WALL_DISTANCE_GOAL)) * -1
+    def get_current_reward(self, wd_multiplier=.2, progress_multiplier=.03, movement_multiplier=.05):
+        wall_distance_reward = 1 - (np.abs(np.min(self.get_my_lidar_readings()[20:41]) - self.WALL_DISTANCE_GOAL))
         progress_reward = (self.previous_distance_from_goal - self.current_distance_from_goal)
-        efficiency_reward = self.get_time_elapsed() * -1
+        #efficiency_reward = self.get_time_elapsed() * -1
+        movement_reward = self.get_distanced_traveled() * movement_multiplier
 
         total_reward = (wall_distance_reward * wd_multiplier
                         + progress_reward * progress_multiplier
-                        + efficiency_reward * time_multiplier)
+                        #+ efficiency_reward * time_multiplier
+                        + movement_reward * movement_multiplier
+                        )
 
-        return _my_activation_func(total_reward)
+        total_reward = _my_activation_func(total_reward)
+
+        return total_reward
 
     def get_distance_from_goal(self):
         gps_readings: [float] = self.gps.getValues()
         current_pos: (float, float) = (gps_readings[0], gps_readings[1])
 
         return np.sqrt((current_pos[0] - self.final_pos[0]) ** 2 + (current_pos[1] - self.final_pos[1]) ** 2)
+
+    def get_distanced_traveled(self):
+        return np.sqrt((self.current_location[0] - self.previous_location[0]) ** 2 +
+                       (self.current_location[1] - self.previous_location[1]) ** 2)
 
     def get_my_lidar_readings(self):
         readings = np.array(self.lidar.getRangeImage())

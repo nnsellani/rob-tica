@@ -10,6 +10,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.env_checker import check_env
 
 import os
+
 os.environ['WEBOTS_HOME'] = '/usr/local/webots'
 
 from controller import Supervisor
@@ -18,10 +19,9 @@ from envs.my_env import MyEnv
 
 
 class RobotActionExecutor:
+    N_ACTIONS = 4
 
-    N_ACTIONS = 5
-
-    def __init__(self, robot, linear_vel_adjustment=.03, angular_vel_adjustment=.15):
+    def __init__(self, robot, linear_vel_adjustment=.025, angular_vel_adjustment=.1):
         self.robot = robot
         self.linear_vel_adjustment = linear_vel_adjustment
         self.angular_vel_adjustment = angular_vel_adjustment
@@ -47,7 +47,7 @@ class RobotActionExecutor:
 
     def _increase_linear_vel(self):
         #print('ACTION: INCREASE LINEAR VEL')
-        self.linear_vel = min(self.linear_vel + self.linear_vel_adjustment, 0.1)
+        self.linear_vel = min(self.linear_vel + self.linear_vel_adjustment, 0.5)
         cmd_vel(self.robot, self.linear_vel, self.angular_vel)
 
     def _decrease_linear_vel(self):
@@ -67,11 +67,13 @@ class RobotActionExecutor:
 
 
 class RobotActionExecutor2:
-
     N_ACTIONS = 4
 
     def __init__(self, robot):
         self.robot = robot
+
+        self.linear_vel = 0
+        self.angular_vel = 0
 
     def execute(self, action):
         if action == 0:
@@ -87,13 +89,19 @@ class RobotActionExecutor2:
         pass
 
     def _move_forward(self):
-        cmd_vel(self.robot, .4, 0)
+        self.linear_vel = .4
+        self.angular_vel = 0
+        cmd_vel(self.robot, self.linear_vel, self.angular_vel)
 
     def _rotate_right(self):
-        cmd_vel(self.robot, 0, .5)
+        self.linear_vel = 0
+        self.angular_vel = .5
+        cmd_vel(self.robot, self.linear_vel, self.angular_vel)
 
     def _rotate_left(self):
-        cmd_vel(self.robot, 0, .5)
+        self.linear_vel = 0
+        self.angular_vel = -.5
+        cmd_vel(self.robot, self.linear_vel, self.angular_vel)
 
 
 class WallFollowingEnv(MyEnv):
@@ -101,7 +109,7 @@ class WallFollowingEnv(MyEnv):
     def __init__(self, supervisor: Supervisor, reward_multipliers=[2, .3, .05], reward_adjustment=1.0):
         self.action_executor = RobotActionExecutor(supervisor)
         self.action_space = spaces.Discrete(self.action_executor.N_ACTIONS)
-        self.observation_space = spaces.Box(low=0, high=1, shape=(self.N_OBSERVATIONS,), dtype=np.float64)
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(self.N_OBSERVATIONS + 2,), dtype=np.float64)
 
         super(WallFollowingEnv, self).__init__(supervisor)
 
@@ -114,16 +122,21 @@ class WallFollowingEnv(MyEnv):
     def _normalize_observation(self, observation):
         return np.divide(observation, 3)
 
+    def get_observation(self):
+        return np.concatenate((self._normalize_observation(self.get_my_lidar_readings()),
+                               [self.action_executor.linear_vel, self.action_executor.angular_vel],))
+
     def reset(self, seed=None):
         self.action_executor.linear_vel = self.action_executor.angular_vel = 0
         self.reward = 0
+        self.current_location = self.gps.getValues()[0:2]
 
-        observation, info = super().reset()
-        observation = self._normalize_observation(observation)
+        super().reset()
+        observation = self.get_observation()
 
-        return observation, info
+        return observation, {}
 
-    def step(self, action, end_reward=1):
+    def step(self, action, end_reward=50):
         assert 0 <= action <= self.action_executor.N_ACTIONS - 1
 
         # Execute chosen action
@@ -134,12 +147,15 @@ class WallFollowingEnv(MyEnv):
         self.previous_distance_from_goal = self.current_distance_from_goal
         self.current_distance_from_goal = self.get_distance_from_goal()
 
-        observation = self._normalize_observation(self.get_my_lidar_readings())
+        self.previous_location = self.current_location
+        self.current_location = self.gps.getValues()[0:2]
+
+        observation = self.get_observation()
 
         if step_result == -1:
             self.reward = -end_reward
             done = True
-        elif self.current_distance_from_goal < 0.1:
+        elif self.current_distance_from_goal < 0.08:
             self.reward = end_reward
             done = True
         elif self.check_wall_collision():
@@ -177,23 +193,22 @@ def train_model():
 
         return func
 
-
     supervisor = Supervisor()
     try:
-        env = WallFollowingEnv(supervisor, reward_multipliers=(10, .3, .05), reward_adjustment=.01)
+        env = WallFollowingEnv(supervisor, reward_multipliers=(2, .3, .1), reward_adjustment=1)
         #env = NormalizeObservation(env)
         check_env(env)
 
         # Wrap the environment
         env = DummyVecEnv([lambda: env])
 
-        n_timesteps = 75_000
+        n_timesteps = 350_000
 
         # Create PPO model
         model = PPO('MlpPolicy', env, verbose=1,
-                    n_epochs=5, learning_rate=.001,
+                    n_epochs=10, learning_rate=.001,
                     #policy_kwargs={
-                    #    'net_arch': [512, 512, 128, 32]
+                    #    'net_arch': [512, 512, 256, 128, 32]
                     #}
         )
 
@@ -225,14 +240,20 @@ def run_model():
         obs = env.reset()
         every_n = 100
         count = every_n
+
         while True:
             action, _states = model.predict(obs)
+
+            print(action)
 
             count -= 1
             if count == 0:
                 count = every_n
+
                 print(f'linear vel: {env.envs[0].action_executor.linear_vel:.3f}\t' +
                       f'angular vel: {env.envs[0].action_executor.angular_vel:.3f}')
+
+                print(np.min(env.envs[0].get_my_lidar_readings()[20:41]))
 
             obs, rewards, dones, info = env.step(action)
     except Exception as e:
@@ -242,4 +263,4 @@ def run_model():
 
 
 if __name__ == '__main__':
-    train_model()
+    run_model()
