@@ -3,9 +3,7 @@ import numpy as np
 import random
 import time
 
-import sys
 import os
-
 os.environ['WEBOTS_HOME'] = '/usr/local/webots'
 
 from controller import Supervisor, Lidar, GPS, TouchSensor
@@ -17,19 +15,20 @@ def _my_activation_func(x):
 
 class MyEnv(gymnasium.Env):
     N_OBSERVATIONS = 120
-    WALL_DISTANCE_GOAL = 0.9
+    WALL_DISTANCE_GOAL = 0.08
+    MAX_WALL_DISTANCE = 0.125
     TIME_LIMIT = 60
     STEPS_PER_ACTION = 1
 
     INITIAL_AND_FINAL_STATES = [
-        ((0.64, 0.11), (0.64, 0.83)),
-        ((0.64, 0.26), (0.64, 0.68)),
-        ((1.76, 0.27), (1.28, 0.78)),
-        ((1.59, 0.27), (1.28, 0.61)),
-        ((1.39, 1.21), (1.39, 1.76)),
-        ((1.32, 1.62), (1.32, 1.36)),
-        ((0.77, 1.42), (0.31, 1.26)),
-        ((0.68, 1.55), (1.31, 1.41))
+        ((0.64, 0.83), (0.64, 0.11), -3.0),
+        ((0.64, 0.26), (0.64, 0.68), -3.2),
+        ((1.76, 0.27), (1.28, 0.78), 1.6),
+        ((1.28, 0.61), (1.59, 0.27), 0),
+        ((1.39, 1.21), (1.39, 1.76), 0.5),
+        ((1.32, 1.62), (1.32, 1.36), -0.4),
+        ((0.31, 1.26), (0.77, 1.42), 0),
+        ((0.68, 1.55), (1.31, 1.41), -2.4)
     ]
 
     def __init__(self, supervisor: Supervisor):
@@ -51,6 +50,7 @@ class MyEnv(gymnasium.Env):
 
     def _init_robot(self):
         self.trans_field = self.supervisor.getFromDef('EPUCK').getField('translation')
+        self.rotat_field = self.supervisor.getFromDef('EPUCK').getField('rotation')
 
         self.lidar: Lidar = self.supervisor.getDevice('lidar')
         self.gps: GPS = self.supervisor.getDevice('gps')
@@ -69,19 +69,20 @@ class MyEnv(gymnasium.Env):
         self.start_time = time.time()
 
         states = list(random.choice(self.INITIAL_AND_FINAL_STATES))
-        random.shuffle(states)
-        self.initial_pos, self.final_pos = states
+        #random.shuffle(states)
+        self.initial_pos, self.final_pos, angle = states
 
         self.current_distance_from_goal = self.previous_distance_from_goal = self.get_distance_from_goal()
 
         # set robot position
         self.trans_field.setSFVec3f([self.initial_pos[0], self.initial_pos[1], 0])
+        self.rotat_field.setSFRotation([0, 0, 1, angle])
 
         observation = self.get_my_lidar_readings()
         return observation, {}
 
     def get_current_reward(self, wd_multiplier=.2, progress_multiplier=.03, movement_multiplier=.05):
-        wall_distance_reward = 1 - (np.abs(np.min(self.get_my_lidar_readings()[20:41]) - self.WALL_DISTANCE_GOAL))
+        wall_distance_reward = (1 - (np.abs(np.min(self.get_my_lidar_readings()[28:33]) - self.WALL_DISTANCE_GOAL)) ** 1/10)
         progress_reward = (self.previous_distance_from_goal - self.current_distance_from_goal)
         #efficiency_reward = self.get_time_elapsed() * -1
         movement_reward = self.get_distanced_traveled() * movement_multiplier
@@ -92,7 +93,7 @@ class MyEnv(gymnasium.Env):
                         + movement_reward * movement_multiplier
                         )
 
-        total_reward = _my_activation_func(total_reward)
+        #total_reward = _my_activation_func(total_reward)
 
         return total_reward
 
@@ -114,6 +115,12 @@ class MyEnv(gymnasium.Env):
     def check_wall_collision(self, min_distance=.045):
         min_lidar_reading = np.min(self.get_my_lidar_readings())
         if min_lidar_reading < min_distance:
+            return True
+        return False
+
+    def check_max_wall_distance_crossed(self):
+        min_lidar_reading = np.min(self.get_my_lidar_readings())
+        if min_lidar_reading > self.MAX_WALL_DISTANCE:
             return True
         return False
 
