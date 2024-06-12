@@ -1,0 +1,24 @@
+To use the programs you will need Windows 10, Webots installed and Python 3.11.9 (might work with lower versions however it was made with this version).
+
+You'll also need to install this libraries:
+	1. numpy
+	2. gymnasium
+	3. stable_baselines3
+
+To run the programs you'll need to:
+
+1st: Open Webots and open one of the worlds in the main\maps\(map name)
+
+2nd: Next, you need to open a command promp terminal and reach the folder containing the webots program using the comand "cd path\to\folder" it shoul be C:\Program Files\Webots\msys64\mingw64\bin however it is not certain.
+
+3rd: After reaching the directory you'll need to run the prompt "webots-controller.exe path\to\controler" (The command always gives an error in the first try, running it again will solve it.)
+
+There are two controllers in the path "main/environments" "main_train.py" and "main_test.py"
+
+The main_train is the controller that trains the models it is only equipped to handle the train_map, the controller also gives the chance to continue to train a previous model, for that you'll have to open the main_train.py and in the bottom of the page when the function train_model is called give it as an argument the path to the retraining model as a string. To change the number of timesteps for training all that is needed to do is change the value of the n_timesteps variable to the desired value. Lastly the model will be saved into the models folder with all the checkpoints in of the model.
+
+The main_test is the controler that runs/tests the models, to run a model simply change the path in the arguments of run_model function at the bottom, and select one of the three maps as a string: "maze1" if you have the maze1 world opened, "maze2" if you have the maze2 world opened and "train" if you have the training map opened. Lastly the Boolean value given as the last argument is a flag that if selected as true will activate the evaluation function of the model:
+
+It will turn off the timer;
+It will limit the number of runs to ten;
+And after the ten runs it will print out 3 lists, the time of each run, the average distance from the left wall in the run and a list with 1 or -1 that show if the run reached the end.
